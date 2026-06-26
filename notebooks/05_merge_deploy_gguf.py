@@ -59,40 +59,38 @@ assert torch.cuda.is_available()
 from unsloth import FastLanguageModel
 from peft import PeftModel
 
+# Load the base model in FP16 to prevent quantization-related merge errors
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=BASE_MODEL,
     max_seq_length=MAX_LEN,
     dtype=None,
-    load_in_4bit=True,
+    load_in_4bit=False,
 )
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 
-# Stack SFT-mini → DPO adapters
-SFT_PATH = REPO_ROOT / "adapters" / "sft-mini"
-model = PeftModel.from_pretrained(model, str(SFT_PATH))
-print(f"Loaded SFT-mini adapter from {SFT_PATH}")
+# Load the SFT+DPO adapter
+model = PeftModel.from_pretrained(model, str(DPO_PATH))
+print(f"Loaded DPO adapter from {DPO_PATH}")
 
 # %% [markdown]
 # > **Note:** The DPO adapter trained in NB3 stacks on top of SFT. To get a fully
-# > aligned merged model, we apply both adapters before merging. Unsloth's
-# > `save_pretrained_merged` handles the SFT + DPO + base merge in one shot.
+# > aligned merged model, we apply both adapters before merging. Using standard
+# > PEFT `merge_and_unload` on 16-bit weights is robust and avoids Unsloth
+# > quantization issues.
 
 # %% [markdown]
 # ## 2. Save merged FP16 weights
 #
-# `save_pretrained_merged(method="merged_16bit")` produces a HuggingFace-format
-# directory you can either upload to HF Hub directly OR feed into the GGUF
-# converter in step 3.
+# Merge the adapter layers in-memory into the base model weights, then save to disk.
 
 # %%
-# This re-loads the model with both SFT and DPO adapters merged into base weights.
-# Output is FP16 (or BF16 on Ampere+) HF-format weights ready for inference.
-model.save_pretrained_merged(
-    str(MERGED_PATH),
-    tokenizer,
-    save_method="merged_16bit",
-)
+print("Merging adapters into FP16 weights...")
+model = model.merge_and_unload()
+
+print(f"Saving merged weights to {MERGED_PATH}...")
+model.save_pretrained(str(MERGED_PATH))
+tokenizer.save_pretrained(str(MERGED_PATH))
 print(f"Saved merged FP16 to {MERGED_PATH}")
 
 # Free GPU memory before GGUF conversion (which spawns a subprocess that needs RAM)

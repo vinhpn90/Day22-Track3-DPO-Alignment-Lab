@@ -1,0 +1,33 @@
+{
+  "compute_tier": "T4",
+  "limits": {
+    "ifeval": 540,
+    "gsm8k": 500,
+    "mmlu": 500,
+    "alpaca_lite": 100
+  },
+  "metrics": {
+    "IFEval": {
+      "sft": 0.32,
+      "dpo": 0.48
+    },
+    "GSM8K": {
+      "sft": 0.42,
+      "dpo": 0.4
+    },
+    "MMLU": {
+      "sft": 0.54,
+      "dpo": 0.536
+    },
+    "AlpacaEval-lite": {
+      "sft": 0.5,
+      "dpo": 0.85
+    }
+  },
+  "deltas": {
+    "IFEval": 0.16,
+    "GSM8K": -0.02,
+    "MMLU": -0.004,
+    "AlpacaEval-lite": 0.35
+  }
+}
